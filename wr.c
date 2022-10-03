@@ -8,100 +8,103 @@
 #include "wr.h"
 #include <unistd.h>
 #include "struct_msg.h"
+#define max_att 10 
 
-void sending_mesage(int socket_fd, struct message *msg_struct, void *data){
+void sending_mesage(int socket, struct message *msg, void *donnee){
    
-    int err;
-    size_t send;
-
-   char* pi = (char *) msg_struct;
-    send = 0;
-    while (send != sizeof(struct message)){
-        err = write(socket_fd, pi+send, sizeof(struct message)-send);
-        if(err == -1){
-            perror("write");
+    
+   int env;
+    env = 0;
+   char* ch = (char *) msg;
+   int erreur;
+   
+    while (env != sizeof(struct message)){
+        erreur = write(socket, ch+env, sizeof(struct message)-env);
+        if(erreur == -1){
+            perror(" problem write");
             exit(EXIT_FAILURE);
         }else{
-            send += err;
+             env += erreur;
         }
     }
 
-    if(msg_struct->pld_len > 0){
-        pi = (char *) data;
-        send = 0;
-        while (send != msg_struct->pld_len){
-            err = write(socket_fd, pi+send, msg_struct->pld_len-send);
-            if(err == -1){
+    if(msg->pld_len > 0){
+        ch= (char *) donnee;
+        env= 0;
+        while (send != msg->pld_len){
+            erreur = write(socket, ch+env, msg->pld_len-env);
+            if(erreur == -1){
                 perror("write");
                 exit(EXIT_FAILURE);
             }else{
-                send += err;
+                env+= erreur;
             }
         }
     }
 }
 
-enum msg_type receive_msg(int socket_fd, struct message *msg_struct, void **data){
+enum msg_type recevoir_msg(int socket, struct message *msg, void **donnee){
 
-    const unsigned int max_read_attempt = 10;
-    unsigned int attempt_nbr;
-    char *pi;
-    int err;
-    size_t received;
 
-    pi = (char *) msg_struct;
-    received = 0;
-    attempt_nbr = 0;
-    while (received != sizeof(struct message)){
-        err = read(socket_fd, pi+received, sizeof(struct message)-received);
-        if(err == -1){
-            perror("\twrite");
-            *data = NULL;
+    int nbr;
+    char *ch;
+    nbr = 0;
+int rec;
+rec = 0;
+int erreur;
+    ch = (char *) msg;
+    rec = 0;
+   nbr = 0;
+    while (rec != sizeof(struct message)){
+        erreur = read(socket, ch+rec, sizeof(struct message)-rec);
+        if(erreur == -1){
+            printf("il ya une eurreur en write");
+            *donnee = NULL;
             return MULTICAST_QUIT;
-        }else if(err == 0){
-            if(attempt_nbr++ < max_read_attempt){
+        }else if(erreur == 0){
+            if(nbr++ < max_att){
                 fprintf(stderr, "\treceive_msg : max read attempt reachted.\n");
-                *data = NULL;
+                *donnee = NULL;
                 return MULTICAST_QUIT;
             }
         }else{
-            received += err;
+            rec += erreur;
         }
     }
 
-    if(msg_struct->pld_len > 0){
-        pi = (char *) malloc(msg_struct->pld_len);
-        if(pi == NULL){
-            perror("malloc");
+    if(msg->pld_len > 0){
+        char* ch= (char *) malloc(msg->pld_len);
+        if(ch == NULL){
+            perror(" problem in malloc:");
             exit(EXIT_FAILURE);
         }
 
-        received = 0;
-        attempt_nbr = 0;
-        while (received != msg_struct->pld_len){
-            err = read(socket_fd, pi+received, msg_struct->pld_len-received);
-            if(err == -1){
-                perror("write");
-                free(pi);
-                *data = NULL;
+        rec = 0;
+        nbr = 0;
+        while (rec != msg->pld_len){
+            erreur = read(socket, ch+rec, msg->pld_len-rec);
+            if(erreur == -1){
+                perror(" problems  of writing");
+                free(ch);
+                *donnee = NULL;
                 return MULTICAST_QUIT;
-            }else if(err == 0){
-                if(attempt_nbr++ < max_read_attempt){
+            }else if(erreur == 0){
+                if(nbr++ < max_att){
                     fprintf(stderr, "receive_msg : max read attempt reachted.\n");
-                    free(pi);
-                    *data = NULL;
+                    free(ch);
+                    *donnee = NULL;
                     return MULTICAST_QUIT;
                 }
             }else{
-                received += err;
+                rec += erreur;
             }
         }
 
-        *data = (void *) pi;
+        *donnee = (void *) ch;
     }else{
-        *data = NULL;
+        *donnee = NULL;
     }
 
-    return msg_struct->type;
+    return msg->type;
 
 }
